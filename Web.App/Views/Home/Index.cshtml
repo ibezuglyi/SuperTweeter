@@ -1,0 +1,183 @@
+﻿@using Web.App
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>@ViewBag.Title</title>
+    <style type="text/css">
+        .column {
+            float: left;
+            display: block;
+            margin-left: 50px;
+        }
+    </style>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+</head>
+<body>
+    <div id="main">
+        <div data-bind="visible: !isLoggedIn()">
+            <div id="registerForm">
+                <h1>Register new user</h1>
+                <input type="text" placeholder="user name" data-bind="value: registerViewModel.userName" />
+                <input type="password" placeholder="password" data-bind="value: registerViewModel.password" />
+                <input style="display: none" type="text" placeholder="full name" data-bind="value: registerViewModel.fullname" />
+                <button data-bind="click: register" value="Login">Register</button>
+            </div>
+
+            <div id="loginForm">
+                <h1>Login</h1>
+                <input placeholder="user name" type="text" data-bind="value: loginViewModel.userName" />
+                <input placeholder="password" type="password" data-bind="value: loginViewModel.password" />
+                <button data-bind="click: login" value="Login">Login</button>
+            </div>
+        </div>
+        <div data-bind="visible: isLoggedIn()">
+            <div class="column">
+                <div id="tweet-form">
+                    <label for="tweet-text">Tweet text:</label>
+                    <textarea id="tweet-text" type="text" data-bind="value: tweetsViewModel.tweetText " ></textarea>
+                    <button class="btn" data-bind="click: tweetsViewModel.addTweet">Add tweet</button>
+                </div>
+                <div id="tweetList">
+                    <h4>Tweets from your feed:</h4>
+                    <div data-bind="foreach: tweetsViewModel.tweets">
+                        <b>
+                            <span data-bind="text: From"></span> : 
+                        </b>
+                        <span data-bind="text: Text"></span>
+                        <br />
+                        <span data-bind="text: Timestamp"></span>
+                        <hr />
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div id="userslist" style="border: 1px solid gray;padding: 15px;">
+                    <h4>You can also follow:</h4>
+                    <div data-bind="foreach: usersViewModel.allUsers">
+                        <div>
+                            <span data-bind="text: $data"></span>
+                            <button data-bind="click: $root.follow.bind($data)">Follow</button>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/knockout")
+    <script type="text/javascript">
+        $(function () {
+            var viewModel = {
+                isLoggedIn: ko.observable(false),
+                follow: function (user) {
+                    $.ajax({
+                        url: 'api/follower',
+                        type: "POST",
+                        data: JSON.stringify({UserName:user}),
+                        contentType: "application/json"
+                    }).success(function (resp) {
+                        viewModel.tweetsViewModel.init();
+                    });
+
+                },
+                loginViewModel: {
+                    userName: ko.observable(),
+                    password: ko.observable(),
+                },
+                registerViewModel: {
+                    userName: ko.observable(),
+                    password: ko.observable(),
+                    fullname: ko.observable(),
+                },
+
+                login: function () {
+                    var user = {
+                        userName: viewModel.loginViewModel.userName(),
+                        password: viewModel.loginViewModel.password()
+                    };
+                    $.ajax({
+                        url: 'api/login',
+                        data: JSON.stringify(user),
+                        type: "POST",
+                        contentType: "application/json"
+                    })
+                        .success(function (resp) {
+                            viewModel.isLoggedIn(true);
+                            viewModel.tweetsViewModel.init();
+                            viewModel.usersViewModel.loadUsers();
+                        });
+                },
+                register: function () {
+                    var user = {
+                        userName: viewModel.registerViewModel.userName(),
+                        password: viewModel.registerViewModel.password(),
+                        fullname: viewModel.registerViewModel.fullname()
+                    };
+
+                    $.ajax({
+                        url: 'api/users',
+                        data: JSON.stringify(user),
+                        type: "POST",
+                        contentType: "application/json"
+                    })
+                        .success(function (resp) {
+                            alert("You have been registered. Please log in");
+                        });
+
+                },
+                usersViewModel: {
+                    allUsers: ko.observableArray(),
+                  
+                    loadUsers: function () {
+                        $.ajax({
+                            url: 'api/users',
+                            type: "GET",
+                            contentType: "application/json"
+                        }).success(function (resp) {
+                            viewModel.usersViewModel.allUsers(resp);
+                        });
+
+                    }
+                },
+                tweetsViewModel: {
+                    tweetText: ko.observable(),
+                    tweets: ko.observableArray(),
+                    init: function () {
+                        $.ajax({
+                            url: 'api/tweets',
+                            type: "GET",
+                            contentType: "application/json"
+                        })
+                            .success(function (resp) {
+                                viewModel.tweetsViewModel.tweets(resp);
+                            });
+                    },
+                    addTweet: function () {
+                        $.ajax({
+                            url: 'api/tweets',
+                            type: "POST",
+                            data: JSON.stringify({ text: viewModel.tweetsViewModel.tweetText() }),
+                            contentType: "application/json"
+                        }).success(function (resp) {
+                            viewModel.tweetsViewModel.init();
+                            viewModel.tweetsViewModel.tweetText("");
+
+                        });
+                    }
+                }
+            };
+
+            ko.applyBindings(viewModel, $('#main')[0]);
+
+
+        });
+    </script>
+
+</body>
+</html>
